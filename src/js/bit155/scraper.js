@@ -49,7 +49,8 @@ bit155.scraper.viewer = function(tab, options) {
   
   // call this again with selected tab if none specified
   if (!tab) {
-    chrome.tabs.getSelected(undefined, function(tab) {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
+      var tab = tabs && tabs.length > 0 ? tabs[0] : null;
       if (tab) {
         bit155.scraper.viewer(tab, options);
       }
@@ -65,7 +66,7 @@ bit155.scraper.viewer = function(tab, options) {
   
   // open window if we get a ping response
   chrome.windows.create({ 
-    url: chrome.extension.getURL('viewer.html') 
+    url: chrome.runtime.getURL('viewer.html') 
       + "?tab=" + tab.id
       + "&options=" + encodeURIComponent(JSON.stringify(options)),
     type: 'popup',
