@@ -224,7 +224,7 @@ Viewer.prototype.reload = function() {
 
     // tools
     tools.append($('<img src="img/highlighter-small.png" title="Highlight in document.">').click(function() {
-      chrome.tabs.sendRequest(self.tabId(), { command: 'scraperHighlight', payload: { xpath: result.xpath } });
+      chrome.tabs.sendMessage(self.tabId(), { command: 'scraperHighlight', payload: { xpath: result.xpath } });
     }));
     
     // index
@@ -288,7 +288,11 @@ Viewer.prototype.scrape = function() {
     }
   };
   
-  chrome.extension.sendRequest(request, function(response) { 
+  chrome.runtime.sendMessage(request, function(response) { 
+    if (chrome.runtime.lastError || !response) {
+      self.error('Scraper could not access the page. Please reload the tab and try again.');
+      return;
+    }
     if (response.error) {
       self.error(response.error);
     }
@@ -313,38 +317,17 @@ Viewer.prototype.spreadsheet = function() {
 
   // find the host tab so we can get its title
   chrome.tabs.get(self.tabId(), function(tab) {
-    var request = {};
-    var dialog = $('<div>').addClass('progress');
-    var title = tab.title;
-    
-    // ask user for title
-    // title = prompt('Please enter a title for your Google spreadsheet:', title);
-    //     if (!title) {
-    //       return;
-    //     }
-    
-    // tell user to wait
-    dialog.append($('<div style="margin: 30px; text-align: center"><img src="img/progress.gif"></div>'));
-    dialog.dialog({
-      closeOnEscape: true,
-      buttons: [],
-      resizable: false,
-      title: 'Exporting to Google Docs...',
-      modal: true
-    });
-    
-    // send spreadsheet request to background.js
-    request.command = 'scraperSpreadsheet';
-    request.payload = {
-      title: title,
-      csv: csv
-    };
-    chrome.extension.sendRequest(request, function(response) {
-      dialog.dialog('close');
-      if (response.error) {
-        self.error(response.error);
-      }
-    });
+    var filename = (tab && tab.title ? tab.title : 'scraper-export').replace(/[\\/:*?"<>|]+/g, '').trim() || 'scraper-export';
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+
+    link.href = url;
+    link.download = filename + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   });
 };
 
@@ -412,7 +395,7 @@ $(function() {
     document.title = "Scraper - " + tab.title;
 
     $('#options-meta-page').empty().append($('<a>').attr('href', tab.url).text(tab.title).click(function() {
-      chrome.tabs.update(viewer.tabId(), { selected: true });
+      chrome.tabs.update(viewer.tabId(), { active: true });
       return false;
     }));
     
@@ -582,4 +565,3 @@ $(function() {
     }, 500);
   }
 });
-
